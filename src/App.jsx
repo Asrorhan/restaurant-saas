@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import Kitchen from './components/Kitchen';
 import Menu from './components/Menu';
+import Admin from './components/Admin';
 
 export default function App() {
   const [currentPath, setCurrentPath] = useState(window.location.pathname);
@@ -30,6 +31,9 @@ export default function App() {
         <Kitchen />
       </div>
     );
+  }
+  if (currentPath === '/admin') {
+    return <Admin />
   }
 
   return (

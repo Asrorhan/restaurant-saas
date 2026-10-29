@@ -8,28 +8,43 @@ export default function Menu() {
     const [cart, setCart] = useState([]);
     const [loading, setLoading] = useState(true);
 
-    // URL'dan stol raqamini olish (?table=4)
     const queryParams = new URLSearchParams(window.location.search);
     const tableNumber = queryParams.get('table') || '1';
-
-    // Servis turi: dine_in (shu yerda) yoki takeaway (olib ketish)
     const [orderType, setOrderType] = useState('dine_in');
 
     useEffect(() => {
-        fetchMenuData();
+        fetchMenuData(true);
+
+        const channel = supabase
+            .channel('menu-changes')
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'menu_items' },
+                () => {
+                    fetchMenuData(false);
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
     }, []);
 
-    const fetchMenuData = async () => {
-        setLoading(true);
+    const fetchMenuData = async (isFirstTime = false) => {
+        if (isFirstTime) setLoading(true);
+
         const { data: catData } = await supabase.from('categories').select('*');
         if (catData) setCategories(catData);
 
-        const { data: itemData } = await supabase.from('menu_items').select('*').eq('is_available', true);
+        const { data: itemData } = await supabase.from('menu_items').select('*').order('created_at', { ascending: false });
         if (itemData) setMenuItems(itemData);
+
         setLoading(false);
     };
 
     const addToCart = (item) => {
+        if (!item.is_available) return;
         setCart((prev) => {
             const existing = prev.find((i) => i.id === item.id);
             if (existing) {
@@ -53,7 +68,6 @@ export default function Menu() {
         const totalPrice = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
         const tenantId = categories[0]?.tenant_id || menuItems[0]?.tenant_id;
 
-        // 1. Orders jadvaliga saqlash
         const { data: orderData, error: orderError } = await supabase
             .from('orders')
             .insert([
@@ -70,7 +84,6 @@ export default function Menu() {
 
         if (orderError) return alert("Buyurtma yuborishda xatolik bo'ldi!");
 
-        // 2. Order_items jadvaliga saqlash
         const orderItemsData = cart.map((item) => ({
             order_id: orderData.id,
             item_name: item.name,
@@ -104,7 +117,7 @@ export default function Menu() {
                 </span>
             </div>
 
-            {/* Dine-in vs Takeaway Switcher */}
+            {/* Service Switcher */}
             <div className="bg-slate-200 p-1 rounded-2xl flex mb-6">
                 <button
                     onClick={() => setOrderType('dine_in')}
@@ -122,7 +135,7 @@ export default function Menu() {
                 </button>
             </div>
 
-            {/* Categories Bar */}
+            {/* Categories */}
             <div className="flex gap-2 overflow-x-auto pb-4 mb-4 no-scrollbar">
                 <button
                     onClick={() => setSelectedCategory('all')}
@@ -143,20 +156,39 @@ export default function Menu() {
                 ))}
             </div>
 
-            {/* Menu Items Grid */}
+            {/* Menu Items */}
             <div className="space-y-3">
                 {filteredItems.map((item) => {
                     const cartItem = cart.find((i) => i.id === item.id);
+                    const isAvailable = item.is_available;
+
                     return (
-                        <div key={item.id} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex justify-between items-center">
+                        <div
+                            key={item.id}
+                            className={`p-4 rounded-2xl border transition flex justify-between items-center ${isAvailable ? 'bg-white border-slate-200' : 'bg-slate-100 border-slate-200 opacity-60'
+                                }`}
+                        >
                             <div>
-                                <h3 className="font-bold text-slate-800 text-sm">{item.name}</h3>
+                                <div className="flex items-center gap-2">
+                                    <h3 className="font-bold text-slate-800 text-sm">{item.name}</h3>
+                                    {!isAvailable && (
+                                        <span className="text-[10px] bg-rose-100 text-rose-700 font-black px-2 py-0.5 rounded-md">
+                                            Tugagan
+                                        </span>
+                                    )}
+                                </div>
                                 <p className="text-xs text-slate-400 mt-0.5">{item.description}</p>
-                                <span className="text-sm font-extrabold text-slate-900 block mt-2">€{Number(item.price).toFixed(2)}</span>
+                                <span className="text-sm font-extrabold text-slate-900 block mt-2">
+                                    €{Number(item.price).toFixed(2)}
+                                </span>
                             </div>
 
                             <div>
-                                {cartItem ? (
+                                {!isAvailable ? (
+                                    <button disabled className="bg-slate-200 text-slate-400 text-xs font-bold px-3 py-2 rounded-xl cursor-not-allowed">
+                                        Mavjud emas
+                                    </button>
+                                ) : cartItem ? (
                                     <div className="flex items-center gap-2 bg-slate-900 text-white rounded-xl p-1">
                                         <button onClick={() => removeFromCart(item.id)} className="w-6 h-6 flex items-center justify-center font-bold">-</button>
                                         <span className="text-xs font-bold">{cartItem.quantity}</span>
@@ -176,7 +208,7 @@ export default function Menu() {
                 })}
             </div>
 
-            {/* Floating Cart Button */}
+            {/* Cart Button */}
             {cart.length > 0 && (
                 <div className="fixed bottom-4 left-4 right-4 max-w-md mx-auto bg-slate-900 text-white p-4 rounded-2xl shadow-2xl flex justify-between items-center">
                     <div>

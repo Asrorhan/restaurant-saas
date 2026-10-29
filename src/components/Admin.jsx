@@ -10,6 +10,8 @@ function Admin() {
     const [description, setDescription] = useState('');
     const [categoryId, setCategoryId] = useState('');
     const [tenantId, setTenantId] = useState(null);
+    const [orders, setOrders] = useState([]);
+    const [commisionRate, setCommisionRate] = useState(5);
 
     useEffect(() => {
         fetchData();
@@ -23,14 +25,33 @@ function Admin() {
             setCategories(catData);
             if (catData.length > 0) setCategoryId(catData[0].id);
         }
-        const { data: tenantData } = await supabase.from('tenants').select('id').limit(1).single();
+        const { data: tenantData } = await supabase
+            .from('tenants').select('id')
+            .limit(1)
+            .single();
         if (tenantData) setTenantId(tenantData.id);
 
-        const { data: itemData } = await supabase.from('menu_items').select('*').order('created_at', { ascending: false });
+        const { data: itemData } = await supabase
+            .from('menu_items')
+            .select('*')
+            .order('created_at', { ascending: false });
         if (itemData) setMenuItems(itemData);
+
+        const { data: ordersData } = await supabase
+            .from('orders')
+            .select('*')
+            .order('created_at', { ascending: false });
+        if (ordersData) setOrders(ordersData)
 
         setLoading(false);
     };
+
+    const totalRevenue = orders.reduce((sum, order) => sum + Number(order.total_price || 0), 0);
+    const totalOrdersCount = orders.length;
+    const myCommission = Number((totalRevenue * 0.05)).toFixed(2);
+
+    const dineInOrders = orders.filter(o => o.order_type === 'dine_in').length;
+    const takeawayOrders = orders.filter(o => o.order_type === 'takeaway').length;
 
     const toggleAvailability = async (item) => {
         const newStatus = !item.is_available;
@@ -94,7 +115,35 @@ function Admin() {
     }
 
     return (
+
+
+
         <div className="max-w-4xl mx-auto p-6 font-sans">
+            <div className='grid grid-cols-2 md:grid-cols-4 gap-4 mb-8'>
+                <div className='bg-white p-4 rounded-2xl border-slate-200 shadow-sm'>
+                    <span className="text-xs font-bold text-slate-400 block uppercase">Jami Tushum</span>
+                    <span className="text-2xl font-black text-slate-900 mt-1 block">€{totalRevenue.toFixed(2)}</span>
+                    <span className="text-[10px] text-slate-500 mt-1 block">{totalOrdersCount} ta buyurtma</span>
+                </div>
+                <div className="bg-emerald-500 text-white p-4 rounded-2xl shadow-sm">
+                    <span className="text-xs font-bold text-emerald-100 block uppercase">Service fee ({commisionRate}%)</span>
+                    <span className="text-2xl font-black text-white mt-1 block">€{myCommission}</span>
+                    <span className="text-[10px] text-emerald-100 mt-1 block">Dastur servisi uchun</span>
+                </div>
+
+                <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+                    <span className="text-xs font-bold text-slate-400 block uppercase">Dine-in (Stolda)</span>
+                    <span className="text-2xl font-black text-slate-800 mt-1 block">{dineInOrders} ta</span>
+                    <span className="text-[10px] text-slate-500 mt-1 block">QR-kod orqali</span>
+                </div>
+
+                <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+                    <span className="text-xs font-bold text-slate-400 block uppercase">Takeaway (Olib ketish)</span>
+                    <span className="text-2xl font-black text-slate-800 mt-1 block">{takeawayOrders} ta</span>
+                    <span className="text-[10px] text-slate-500 mt-1 block">Olib ketish zakazlari</span>
+                </div>
+            </div>
+
             <div className="flex justify-between items-center border-b pb-4 mb-6">
                 <h1 className="text-2xl font-black text-slate-800">Boshqaruv Paneli (Admin)</h1>
                 <span className="text-xs bg-slate-200 text-slate-700 px-3 py-1 rounded-lg font-bold">Menu Management</span>
@@ -178,8 +227,8 @@ function Admin() {
                                 <button
                                     onClick={() => toggleAvailability(item)}
                                     className={`text-xs font-black px-3 py-1.5 rounded-xl transition ${item.is_available
-                                            ? 'bg-emerald-100 text-emerald-700 border border-emerald-300'
-                                            : 'bg-rose-100 text-rose-700 border border-rose-300'
+                                        ? 'bg-emerald-100 text-emerald-700 border border-emerald-300'
+                                        : 'bg-rose-100 text-rose-700 border border-rose-300'
                                         }`}
                                 >
                                     {item.is_available ? 'In Stock' : 'Out of Stock'}

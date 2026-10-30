@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
+import Login from './Login';
 
 function Admin() {
     const [categories, setCategories] = useState([]);
@@ -15,6 +16,7 @@ function Admin() {
     const [activeTab, setActiveTab] = useState('orders');
     const [editingItemId, setEditingItemId] = useState(null);
     const [newPrice, setNewPrice] = useState('');
+    const [session, setSession] = useState(null);
 
     useEffect(() => {
         fetchData();
@@ -54,6 +56,18 @@ function Admin() {
             supabase.removeChannel(orderChannel);
             supabase.removeChannel(menuChannel);
         };
+    }, []);
+    // Login
+    useEffect(() => {
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            setSession(session);
+        });
+
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+            setSession(session);
+        });
+
+        return () => subscription.unsubscribe();
     }, []);
 
     const fetchData = async () => {
@@ -180,12 +194,27 @@ function Admin() {
         if (error) alert("Statusni o'zgartirishda xato bo'ldi");
     }
 
+    if (!session) {
+        return <Login onLoginSuccess={(sess) => setSession(sess)} />;
+    }
+
     if (loading) {
         return <div className="p-8 text-center font-bold text-slate-500">Admin panel yuklanmoqda...</div>;
     }
 
     return (
         <div className="max-w-4xl mx-auto p-6 font-sans">
+            {/* Yuqori Sarlavha va Logout Tugmasi */}
+            <div className="flex justify-between items-center border-b pb-4 mb-6">
+                <h1 className="text-2xl font-black text-slate-800">Boshqaruv Paneli (Admin)</h1>
+                <button
+                    onClick={() => supabase.auth.signOut()}
+                    className="text-xs bg-rose-50 text-rose-600 border border-rose-200 px-3 py-1.5 rounded-xl font-bold hover:bg-rose-500 hover:text-white transition"
+                >
+                    Chiqish (Logout)
+                </button>
+            </div>
+
             {/* Tab Tugmalari */}
             <div className="flex gap-2 mb-6 border-b pb-3">
                 <button
@@ -207,9 +236,8 @@ function Admin() {
             {/* 1-TAB: DASHBOARD VA JONLI BUYURTMALAR */}
             {activeTab === 'orders' && (
                 <>
-                    {/* Analitika Kartochkalari Grid */}
                     <div className='grid grid-cols-2 md:grid-cols-4 gap-4 mb-8'>
-                        <div className='bg-white p-4 rounded-2xl border-slate-200 shadow-sm'>
+                        <div className='bg-white p-4 rounded-2xl border border-slate-200 shadow-sm'>
                             <span className="text-xs font-bold text-slate-400 block uppercase">Jami Tushum</span>
                             <span className="text-2xl font-black text-slate-900 mt-1 block">€{totalRevenue.toFixed(2)}</span>
                             <span className="text-[10px] text-slate-500 mt-1 block">{totalOrdersCount} ta buyurtma</span>
@@ -231,7 +259,6 @@ function Admin() {
                         </div>
                     </div>
 
-                    {/* Jonli Buyurtmalar Ro'yxati */}
                     <div className="bg-white p-6 rounded-2xl border border-slate-200 mb-8 shadow-sm">
                         <h2 className="text-base font-black text-slate-800 mb-4 uppercase">
                             Jonli Buyurtmalar ({orders.length})
@@ -276,7 +303,6 @@ function Admin() {
             {/* 2-TAB: MENU VA NARXLAR BOSHQRUVI */}
             {activeTab === 'menu' && (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    {/* Chap tomon: Yangi taom qo'shish formasi */}
                     <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm h-fit">
                         <h2 className="text-sm font-black text-slate-700 mb-4 uppercase">Yangi Taom Qo'shish</h2>
                         <form onSubmit={handleAddItem} className="space-y-3">
@@ -335,7 +361,6 @@ function Admin() {
                         </form>
                     </div>
 
-                    {/* O'ng tomon: Taomlar ro'yxati va Out of Stock toggle */}
                     <div className="md:col-span-2 space-y-3">
                         <h2 className="text-sm font-black text-slate-700 mb-4 uppercase">Mavjud Taomlar ({menuItems.length})</h2>
                         {menuItems.map((item) => (
@@ -391,8 +416,8 @@ function Admin() {
                                     <button
                                         onClick={() => toggleAvailability(item)}
                                         className={`text-xs font-black px-3 py-1.5 rounded-xl transition ${item.is_available
-                                            ? 'bg-emerald-100 text-emerald-700 border border-emerald-300'
-                                            : 'bg-rose-100 text-rose-700 border border-rose-300'
+                                                ? 'bg-emerald-100 text-emerald-700 border border-emerald-300'
+                                                : 'bg-rose-100 text-rose-700 border border-rose-300'
                                             }`}
                                     >
                                         {item.is_available ? 'In Stock' : 'Out of Stock'}

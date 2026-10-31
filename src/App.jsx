@@ -32,11 +32,10 @@ export default function App() {
       </div>
     );
   }
+
   if (currentPath === '/admin') {
-    return <Admin />
+    return <Admin />;
   }
 
-  return (
-    <Menu />
-  );
+  return <Menu />;
 }

@@ -86,8 +86,8 @@ export default function Menu() {
 
         const orderItemsData = cart.map((item) => ({
             order_id: orderData.id,
-            item_name: item.name,
-            unit_price: item.price,
+            menu_item_id: item.id,
+            price_at_time: item.price,
             quantity: item.quantity
         }));
 

@@ -13,9 +13,12 @@ function Kitchen() {
         const { data, error } = await supabase
             .from('orders')
             .select(`
-                *,
-                order_items (*)
-            `)
+    *,
+    order_items (
+        *,
+        menu_items (name)
+    )
+`)
             .in('status', ['new', 'in_prep', 'ready'])
             .order('created_at', { ascending: true });
 
@@ -131,7 +134,9 @@ function Kitchen() {
                                     {order.order_items?.map((item) => (
                                         <div key={item.id} className="flex justify-between text-sm">
                                             <span className="font-bold text-white mr-2">{item.quantity}x</span>
-                                            <span className="flex-1 text-slate-300">{item.item_name}</span>
+                                            <span className="flex-1 text-slate-300">
+                                                {item.item_name || item.menu_items?.name || 'Taom'}
+                                            </span>
                                         </div>
                                     ))}
                                 </div>

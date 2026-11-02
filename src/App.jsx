@@ -21,9 +21,9 @@ export default function App() {
     return <Admin />;
   }
 
-  if (currentPath === '/order') {
-    return <RemoteOrder />;
+  if (currentPath === '/menu') {
+    return <Menu />;
   }
 
-  return <Menu />;
+  return <RemoteOrder />;
 }

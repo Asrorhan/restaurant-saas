@@ -19,6 +19,8 @@ function MenuManager({
     handleUpdatePrice,
     toggleAvailability,
     handleDeleteItem,
+    setImageFile, // 📸 Rasm faylini tanlash funksiyasi
+    uploading,    // 📸 Yuklanish holati
 }) {
     return (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -71,11 +73,23 @@ function MenuManager({
                         />
                     </div>
 
+                    {/* 📸 Telefondan rasm faylini tanlash inputi */}
+                    <div>
+                        <label className="text-xs font-bold text-slate-500 block mb-1">Taom Rasmi</label>
+                        <input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => setImageFile(e.target.files[0])}
+                            className="w-full text-xs text-slate-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-slate-900 file:text-white hover:file:bg-slate-800 cursor-pointer"
+                        />
+                    </div>
+
                     <button
                         type="submit"
-                        className="w-full bg-slate-900 text-white font-bold py-2.5 rounded-xl text-xs hover:bg-slate-800 transition"
+                        disabled={uploading}
+                        className="w-full bg-slate-900 disabled:bg-slate-400 text-white font-bold py-2.5 rounded-xl text-xs hover:bg-slate-800 transition"
                     >
-                        + Qo'shish
+                        {uploading ? "Rasm yuklanmoqda..." : "+ Qo'shish"}
                     </button>
                 </form>
             </div>
@@ -88,55 +102,70 @@ function MenuManager({
                         className={`p-4 rounded-2xl border flex justify-between items-center transition ${item.is_available ? 'bg-white border-slate-200' : 'bg-slate-100 border-slate-300 opacity-60'
                             }`}
                     >
-                        <div>
-                            <h3 className="font-bold text-slate-800 text-sm">{item.name}</h3>
-
-                            {editingItemId === item.id ? (
-                                <div className="flex items-center gap-1 mt-1">
-                                    <input
-                                        type="number"
-                                        step="0.01"
-                                        value={newPrice}
-                                        onChange={(e) => setNewPrice(e.target.value)}
-                                        className="w-20 text-xs p-1 rounded-lg border border-slate-300 outline-none font-bold"
-                                        placeholder="0.00"
-                                    />
-                                    <button
-                                        onClick={() => handleUpdatePrice(item.id)}
-                                        className="bg-emerald-500 text-white text-[10px] px-2 py-1 rounded-lg font-bold"
-                                    >
-                                        ✓
-                                    </button>
-                                    <button
-                                        onClick={() => setEditingItemId(null)}
-                                        className="bg-slate-200 text-slate-600 text-[10px] px-2 py-1 rounded-lg font-bold"
-                                    >
-                                        ✕
-                                    </button>
-                                </div>
+                        <div className="flex items-center gap-3">
+                            {/* 📸 Taom rasmini ko'rsatuvchi box */}
+                            {item.image_url ? (
+                                <img
+                                    src={item.image_url}
+                                    alt={item.name}
+                                    className="w-12 h-12 object-cover rounded-xl border border-slate-200 flex-shrink-0"
+                                />
                             ) : (
-                                <div className="flex items-center gap-1 mt-0.5">
-                                    <span className="text-xs text-slate-500 font-extrabold">€{Number(item.price).toFixed(2)}</span>
-                                    <button
-                                        onClick={() => {
-                                            setEditingItemId(item.id);
-                                            setNewPrice(item.price);
-                                        }}
-                                        className="text-[10px] text-slate-400 hover:text-slate-700 ml-1"
-                                        title="Narxni tahrirlash"
-                                    >
-                                        ✏️
-                                    </button>
+                                <div className="w-12 h-12 bg-slate-100 rounded-xl flex items-center justify-center text-lg flex-shrink-0">
+                                    🍽️
                                 </div>
                             )}
+
+                            <div>
+                                <h3 className="font-bold text-slate-800 text-sm">{item.name}</h3>
+
+                                {editingItemId === item.id ? (
+                                    <div className="flex items-center gap-1 mt-1">
+                                        <input
+                                            type="number"
+                                            step="0.01"
+                                            value={newPrice}
+                                            onChange={(e) => setNewPrice(e.target.value)}
+                                            className="w-20 text-xs p-1 rounded-lg border border-slate-300 outline-none font-bold"
+                                            placeholder="0.00"
+                                        />
+                                        <button
+                                            onClick={() => handleUpdatePrice(item.id)}
+                                            className="bg-emerald-500 text-white text-[10px] px-2 py-1 rounded-lg font-bold"
+                                        >
+                                            ✓
+                                        </button>
+                                        <button
+                                            onClick={() => setEditingItemId(null)}
+                                            className="bg-slate-200 text-slate-600 text-[10px] px-2 py-1 rounded-lg font-bold"
+                                        >
+                                            ✕
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div className="flex items-center gap-1 mt-0.5">
+                                        <span className="text-xs text-slate-500 font-extrabold">€{Number(item.price).toFixed(2)}</span>
+                                        <button
+                                            onClick={() => {
+                                                setEditingItemId(item.id);
+                                                setNewPrice(item.price);
+                                            }}
+                                            className="text-[10px] text-slate-400 hover:text-slate-700 ml-1"
+                                            title="Narxni tahrirlash"
+                                        >
+                                            ✏️
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
                         </div>
 
                         <div className="flex items-center gap-2">
                             <button
                                 onClick={() => toggleAvailability(item)}
                                 className={`text-xs font-black px-3 py-1.5 rounded-xl transition ${item.is_available
-                                        ? 'bg-emerald-100 text-emerald-700 border border-emerald-300'
-                                        : 'bg-rose-100 text-rose-700 border border-rose-300'
+                                    ? 'bg-emerald-100 text-emerald-700 border border-emerald-300'
+                                    : 'bg-rose-100 text-rose-700 border border-rose-300'
                                     }`}
                             >
                                 {item.is_available ? 'In Stock' : 'Out of Stock'}

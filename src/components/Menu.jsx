@@ -7,6 +7,7 @@ export default function Menu() {
     const [selectedCategory, setSelectedCategory] = useState('all');
     const [cart, setCart] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [submitting, setSubmitting] = useState(false);
 
     const queryParams = new URLSearchParams(window.location.search);
     const tableNumber = queryParams.get('table') || '1';
@@ -65,43 +66,68 @@ export default function Menu() {
     const submitOrder = async () => {
         if (cart.length === 0) return alert("Savatchangiz bo'sh!");
 
-        const totalPrice = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
         const tenantId = categories[0]?.tenant_id || menuItems[0]?.tenant_id;
+        if (!tenantId) return alert("Restoran ma'lumotlari yuklanmadi, sahifani qayta yangilang!");
+
+        const parsedTableNumber = Number(tableNumber) || 0;
+        const totalPrice = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+
+        setSubmitting(true);
 
         const { data: orderData, error: orderError } = await supabase
             .from('orders')
             .insert([
                 {
                     tenant_id: tenantId,
-                    order_type: orderType,
-                    table_number: parseInt(tableNumber),
+                    order_type: orderType || 'dine_in',
+                    table_number: parsedTableNumber,
                     status: 'new',
-                    total_price: totalPrice
+                    total_price: totalPrice,
+                    payment_method: 'counter',
+                    payment_status: 'pending'
                 }
             ])
             .select()
             .single();
 
-        if (orderError) return alert("Buyurtma yuborishda xatolik bo'ldi!");
+        if (orderError) {
+            setSubmitting(false);
+            return alert("Buyurtma yuborishda xatolik bo'ldi: " + orderError.message);
+        }
 
         const orderItemsData = cart.map((item) => ({
             order_id: orderData.id,
             menu_item_id: item.id,
+            item_name: item.name,
+            unit_price: item.price,
             price_at_time: item.price,
             quantity: item.quantity
         }));
 
         const { error: itemsError } = await supabase.from('order_items').insert(orderItemsData);
 
-        if (!itemsError) {
-            alert("Buyurtmangiz qabul qilindi!");
+        setSubmitting(false);
+
+        if (itemsError) {
+            alert("Taomlarni saqlashda xatolik yuz berdi: " + itemsError.message);
+        } else {
+            alert("🎉 Buyurtmangiz qabul qilindi!");
             setCart([]);
         }
     };
 
+    const categoryOrder = categories.reduce((acc, cat, index) => {
+        acc[cat.id] = index;
+        return acc;
+    }, {});
+
+    const sortedMenuItems = [...menuItems].sort(
+        (a, b) => (categoryOrder[a.category_id] ?? 0) - (categoryOrder[b.category_id] ?? 0)
+    );
+
     const filteredItems = selectedCategory === 'all'
-        ? menuItems
-        : menuItems.filter((item) => item.category_id === selectedCategory);
+        ? sortedMenuItems
+        : sortedMenuItems.filter((item) => item.category_id === selectedCategory);
 
     if (loading) {
         return <div className="p-8 text-center text-slate-500 font-bold">Menyu yuklanmoqda...</div>;
@@ -109,7 +135,6 @@ export default function Menu() {
 
     return (
         <div className="max-w-md mx-auto bg-slate-50 min-h-screen p-4 font-sans pb-32">
-            {/* Header */}
             <div className="mb-4 border-b pb-3">
                 <h1 className="text-2xl font-black text-slate-800">Chayhana Menu</h1>
                 <span className="text-xs bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-full font-bold inline-block mt-1">
@@ -117,7 +142,6 @@ export default function Menu() {
                 </span>
             </div>
 
-            {/* Service Switcher */}
             <div className="bg-slate-200 p-1 rounded-2xl flex mb-6">
                 <button
                     onClick={() => setOrderType('dine_in')}
@@ -135,7 +159,6 @@ export default function Menu() {
                 </button>
             </div>
 
-            {/* Categories */}
             <div className="flex gap-2 overflow-x-auto pb-4 mb-4 no-scrollbar">
                 <button
                     onClick={() => setSelectedCategory('all')}
@@ -156,7 +179,6 @@ export default function Menu() {
                 ))}
             </div>
 
-            {/* Menu Items */}
             <div className="space-y-3">
                 {filteredItems.map((item) => {
                     const cartItem = cart.find((i) => i.id === item.id);
@@ -168,19 +190,33 @@ export default function Menu() {
                             className={`p-4 rounded-2xl border transition flex justify-between items-center ${isAvailable ? 'bg-white border-slate-200' : 'bg-slate-100 border-slate-200 opacity-60'
                                 }`}
                         >
-                            <div>
-                                <div className="flex items-center gap-2">
-                                    <h3 className="font-bold text-slate-800 text-sm">{item.name}</h3>
-                                    {!isAvailable && (
-                                        <span className="text-[10px] bg-rose-100 text-rose-700 font-black px-2 py-0.5 rounded-md">
-                                            Tugagan
-                                        </span>
-                                    )}
+                            <div className="flex items-center gap-3">
+                                {item.image_url ? (
+                                    <img
+                                        src={item.image_url}
+                                        alt={item.name}
+                                        className="w-14 h-14 object-cover rounded-xl border border-slate-100 flex-shrink-0"
+                                    />
+                                ) : (
+                                    <div className="w-14 h-14 bg-slate-100 rounded-xl flex items-center justify-center text-xl flex-shrink-0">
+                                        🍽️
+                                    </div>
+                                )}
+
+                                <div>
+                                    <div className="flex items-center gap-2">
+                                        <h3 className="font-bold text-slate-800 text-sm">{item.name}</h3>
+                                        {!isAvailable && (
+                                            <span className="text-[10px] bg-rose-100 text-rose-700 font-black px-2 py-0.5 rounded-md">
+                                                Tugagan
+                                            </span>
+                                        )}
+                                    </div>
+                                    <p className="text-xs text-slate-400 mt-0.5">{item.description}</p>
+                                    <span className="text-sm font-extrabold text-slate-900 block mt-2">
+                                        €{Number(item.price).toFixed(2)}
+                                    </span>
                                 </div>
-                                <p className="text-xs text-slate-400 mt-0.5">{item.description}</p>
-                                <span className="text-sm font-extrabold text-slate-900 block mt-2">
-                                    €{Number(item.price).toFixed(2)}
-                                </span>
                             </div>
 
                             <div>
@@ -208,7 +244,6 @@ export default function Menu() {
                 })}
             </div>
 
-            {/* Cart Button */}
             {cart.length > 0 && (
                 <div className="fixed bottom-4 left-4 right-4 max-w-md mx-auto bg-slate-900 text-white p-4 rounded-2xl shadow-2xl flex justify-between items-center">
                     <div>
@@ -217,9 +252,10 @@ export default function Menu() {
                     </div>
                     <button
                         onClick={submitOrder}
-                        className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold px-5 py-2.5 rounded-xl text-sm transition"
+                        disabled={submitting}
+                        className="bg-emerald-500 hover:bg-emerald-600 disabled:bg-slate-600 text-white font-bold px-5 py-2.5 rounded-xl text-sm transition"
                     >
-                        Buyurtma berish ➔
+                        {submitting ? 'Yuborilmoqda...' : 'Buyurtma berish ➔'}
                     </button>
                 </div>
             )}

@@ -23,6 +23,10 @@ function Admin() {
     const [session, setSession] = useState(null);
     const [dateFilter, setDateFilter] = useState('today');
 
+    // 📸 Rasm fayli va yuklanish holati uchun state'lar
+    const [imageFile, setImageFile] = useState(null);
+    const [uploading, setUploading] = useState(false);
+
     const filteredOrders = orders.filter((order) => {
         if (dateFilter === 'all') return true;
         const orderDate = new Date(order.created_at);
@@ -115,7 +119,12 @@ function Admin() {
         const { data: tenantData } = await supabase.from('tenants').select('id').limit(1);
         if (tenantData && tenantData.length > 0) setTenantId(tenantData[0].id);
 
-        const { data: itemData } = await supabase.from('menu_items').select('*').order('created_at', { ascending: false });
+        const { data: itemData } = await supabase
+            .from('menu_items')
+            .select('*')
+            .order('category_id', { ascending: true })
+            .order('created_at', { ascending: false });
+
         if (itemData) setMenuItems(itemData);
 
         const { data: ordersData } = await supabase.from('orders').select('*').order('created_at', { ascending: false });
@@ -136,16 +145,52 @@ function Admin() {
         e.preventDefault();
         if (!name || !price || !categoryId) return alert("Barcha maydonlarni to'ldiring!");
 
+        setUploading(true);
+        let imageUrl = null;
+
+        if (imageFile) {
+            const fileExt = imageFile.name.split('.').pop();
+            const fileName = `${Date.now()}.${fileExt}`;
+            const filePath = `items/${fileName}`;
+
+            const { error: uploadError } = await supabase.storage
+                .from('menu-images')
+                .upload(filePath, imageFile);
+
+            if (uploadError) {
+                alert("Rasm yuklashda xatolik yuz berdi: " + uploadError.message);
+                setUploading(false);
+                return;
+            }
+
+            const { data: publicUrlData } = supabase.storage
+                .from('menu-images')
+                .getPublicUrl(filePath);
+
+            imageUrl = publicUrlData.publicUrl;
+        }
+
         const tenantId = categories[0]?.tenant_id;
         const { data, error } = await supabase.from('menu_items').insert([
-            { tenant_id: tenantId, category_id: categoryId, name, description, price: parseFloat(price), is_available: true }
+            {
+                tenant_id: tenantId,
+                category_id: categoryId,
+                name,
+                description,
+                price: parseFloat(price),
+                image_url: imageUrl,
+                is_available: true
+            }
         ]).select().single();
+
+        setUploading(false);
 
         if (!error && data) {
             setMenuItems([data, ...menuItems]);
-            setName(''); setPrice(''); setDescription('');
+            setName(''); setPrice(''); setDescription(''); setImageFile(null);
             alert("Yangi taom qo'shildi!");
         }
+        fetchData();
     };
 
     const handleDeleteItem = async (itemId) => {
@@ -257,6 +302,9 @@ function Admin() {
                     handleUpdatePrice={handleUpdatePrice}
                     toggleAvailability={toggleAvailability}
                     handleDeleteItem={handleDeleteItem}
+                    /* 📸 MenuManager komponentiga rasm tayanchlarini uzatamiz */
+                    setImageFile={setImageFile}
+                    uploading={uploading}
                 />
             )}
         </div>

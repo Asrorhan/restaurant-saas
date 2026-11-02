@@ -18,21 +18,32 @@ function RemoteOrder() {
     const [bookingHour, setBookingHour] = useState('');
     const [lang, setLang] = useState('ru');
 
+    // Filial / Ish vaqti holati
+    const [branchData, setBranchData] = useState({ is_open: true, open_time: '09:00', close_time: '23:00', sunday_open_time: '10:00', sunday_close_time: '18:00' });
+    const [isRestaurantOpenTime, setIsRestaurantOpenTime] = useState(true);
+
     const t = translations[lang];
 
+    // Yakshanba kunini hisobga oluvchi vaqt funksiyasi
     const getTimeSlots = () => {
-        const now = new Date();
-        const dayOfWeek = now.getDay();
+        if (!branchData.is_open) return [];
 
-        const startHour = 10;
-        const endHour = dayOfWeek === 0 ? 18 : 22;
+        const now = new Date();
+        const dayOfWeek = now.getDay(); // 0 - Yakshanba
+
+        const startStr = dayOfWeek === 0 ? (branchData.sunday_open_time || '10:00') : (branchData.open_time || '09:00');
+        const endStr = dayOfWeek === 0 ? (branchData.sunday_close_time || '18:00') : (branchData.close_time || '23:00');
+
+        const [startH, startM] = startStr.split(':').map(Number);
+        const [endH, endM] = endStr.split(':').map(Number);
 
         const currentHour = now.getHours();
         const currentMinute = now.getMinutes();
 
         const slots = [];
-        for (let h = startHour; h < endHour; h++) {
+        for (let h = startH; h < endH || (h === endH && endM > 0); h++) {
             for (let m of [0, 15, 30, 45]) {
+                if (h > endH || (h === endH && m > endM)) break;
                 if (h > currentHour || (h === currentHour && m > currentMinute + 10)) {
                     const hStr = String(h).padStart(2, '0');
                     const mStr = String(m).padStart(2, '0');
@@ -51,6 +62,7 @@ function RemoteOrder() {
         }
     }, [timeSlots]);
 
+    // Barcha useEffect-lar va Realtime bitta joyga birlashtirildi
     useEffect(() => {
         fetchData();
 
@@ -59,13 +71,50 @@ function RemoteOrder() {
             .on('postgres_changes', { event: '*', schema: 'public', table: 'menu_items' }, () => fetchData())
             .subscribe();
 
+        const branchChannel = supabase
+            .channel('public:branches')
+            .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'branches' }, (payload) => {
+                if (payload.new && payload.new.id === 1) {
+                    setBranchData(payload.new);
+                    checkOpenStatus(payload.new);
+                }
+            })
+            .subscribe();
+
         return () => {
             supabase.removeChannel(menuChannel);
+            supabase.removeChannel(branchChannel);
         };
     }, []);
 
+    const checkOpenStatus = (data) => {
+        if (!data.is_open) {
+            setIsRestaurantOpenTime(false);
+            return;
+        }
+
+        const now = new Date();
+        const dayOfWeek = now.getDay();
+        const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+        const openT = dayOfWeek === 0 ? (data.sunday_open_time || '10:00') : data.open_time;
+        const closeT = dayOfWeek === 0 ? (data.sunday_close_time || '18:00') : data.close_time;
+
+        if (currentTime < openT || currentTime > closeT) {
+            setIsRestaurantOpenTime(false);
+        } else {
+            setIsRestaurantOpenTime(true);
+        }
+    };
+
     const fetchData = async () => {
         setLoading(true);
+        const { data: branchInfo } = await supabase.from('branches').select('*').eq('id', 1).single();
+        if (branchInfo) {
+            setBranchData(branchInfo);
+            checkOpenStatus(branchInfo);
+        }
+
         const { data: cat } = await supabase.from('categories').select('*');
         const { data: items } = await supabase.from('menu_items').select('*').eq('is_available', true);
         if (cat) setCategories(cat);
@@ -84,8 +133,28 @@ function RemoteOrder() {
     };
 
     const handleSubmit = async () => {
+        // Tugma bosilganda bazadan holatni qaytadan tekshirish
+        const { data: latestBranch } = await supabase.from('branches').select('*').eq('id', 1).single();
+
+        if (latestBranch) {
+            const now = new Date();
+            const dayOfWeek = now.getDay();
+            const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+            const openT = dayOfWeek === 0 ? (latestBranch.sunday_open_time || '10:00') : latestBranch.open_time;
+            const closeT = dayOfWeek === 0 ? (latestBranch.sunday_close_time || '18:00') : latestBranch.close_time;
+
+            const isClosed = !latestBranch.is_open || (currentTime < openT || currentTime > closeT);
+
+            if (isClosed) {
+                alert('Restoran hozir yopiq! Buyurtma qabul qilinmaydi.');
+                setIsRestaurantOpenTime(false);
+                return;
+            }
+        }
+
         if (!name.trim()) return alert(t.enterNameAlert);
-        if (!bookingHour) return alert(t.closedAlert);
+        if (!bookingHour) return alert(t.closedAlert || 'Vaqt tanlanmagan');
         if (cart.length === 0 && orderType !== 'booking') return alert(t.emptyCartAlert);
 
         const tenantId = categories[0]?.tenant_id || menuItems[0]?.tenant_id;
@@ -178,6 +247,12 @@ function RemoteOrder() {
 
             <h1 className="text-xl font-black text-slate-800 mb-3">{t.title}</h1>
 
+            {!isRestaurantOpenTime && (
+                <div className="bg-rose-50 border border-rose-200 text-rose-700 p-3.5 rounded-2xl mb-4 text-xs font-bold text-center">
+                    {t.closedBanner} {new Date().getDay() === 0 ? `${branchData.sunday_open_time} - ${branchData.sunday_close_time}` : `${branchData.open_time} - ${branchData.close_time}`}.
+                </div>
+            )}
+
             <div className="bg-slate-200 p-1 rounded-2xl flex gap-1 mb-4">
                 <button
                     onClick={() => setOrderType('booking')}
@@ -208,7 +283,7 @@ function RemoteOrder() {
                     <span className="font-bold text-slate-600">
                         {orderType === 'booking' ? t.arrivalTime : t.pickupTime}
                     </span>
-                    {timeSlots.length > 0 ? (
+                    {isRestaurantOpenTime && timeSlots.length > 0 ? (
                         <select
                             value={bookingHour}
                             onChange={(e) => setBookingHour(e.target.value)}
@@ -221,7 +296,7 @@ function RemoteOrder() {
                             ))}
                         </select>
                     ) : (
-                        <span className="text-xs font-bold text-rose-500">{t.restaurantClosed}</span>
+                        <span className="text-xs font-bold text-rose-500">{t.restaurantClosed || 'Yopiq'}</span>
                     )}
                 </div>
 
@@ -297,7 +372,8 @@ function RemoteOrder() {
                             ) : (
                                 <button
                                     onClick={() => updateCart(item, 1)}
-                                    className="bg-emerald-500 text-white text-xs font-bold px-3 py-1.5 rounded-xl"
+                                    disabled={!isRestaurantOpenTime}
+                                    className="bg-emerald-500 disabled:bg-slate-300 text-white text-xs font-bold px-3 py-1.5 rounded-xl"
                                 >
                                     {t.addToCart}
                                 </button>
@@ -316,7 +392,7 @@ function RemoteOrder() {
                 </div>
                 <button
                     onClick={handleSubmit}
-                    disabled={submitting}
+                    disabled={submitting || !isRestaurantOpenTime}
                     className="w-full bg-emerald-600 disabled:bg-slate-300 text-white font-bold py-3 rounded-2xl text-sm transition"
                 >
                     {submitting ? t.submitting : `${t.confirmOrder}`}

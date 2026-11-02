@@ -25,6 +25,9 @@ function Admin() {
     const [dateFilter, setDateFilter] = useState('today');
     const [lang, setLang] = useState('ru');
 
+    // Filial / Ish vaqti holati uchun state-lar
+    const [branch, setBranch] = useState({ name: '', is_open: true, open_time: '09:00', close_time: '23:00' });
+
     const [imageFile, setImageFile] = useState(null);
     const [uploading, setUploading] = useState(false);
 
@@ -133,7 +136,30 @@ function Admin() {
         const { data: ordersData } = await supabase.from('orders').select('*').order('created_at', { ascending: false });
         if (ordersData) setOrders(ordersData);
 
+        // 1-filial sozlamalarini bazadan olish
+        const { data: branchData } = await supabase.from('branches').select('*').eq('id', 1).single();
+        if (branchData) setBranch(branchData);
+
         setLoading(false);
+    };
+
+    // Ish vaqtini saqlash funksiyasi
+    const handleSaveBranchSettings = async (e) => {
+        e.preventDefault();
+        const { error } = await supabase
+            .from('branches')
+            .update({
+                is_open: branch.is_open,
+                open_time: branch.open_time,
+                close_time: branch.close_time
+            })
+            .eq('id', 1);
+
+        if (error) {
+            alert('Xatolik yuz berdi: ' + error.message);
+        } else {
+            alert('Ish vaqti muvaffaqiyatli saqlandi!');
+        }
     };
 
     const toggleAvailability = async (item) => {
@@ -248,6 +274,7 @@ function Admin() {
                 </div>
             </div>
 
+            {/* Tab menyular */}
             <div className="flex gap-2 mb-6 border-b pb-3">
                 <button
                     onClick={() => setActiveTab('orders')}
@@ -262,6 +289,12 @@ function Admin() {
                         }`}
                 >
                     {t.tabMenu}
+                </button>
+                <button
+                    onClick={() => setActiveTab('settings')}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold transition ${activeTab === 'settings' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600'}`}
+                >
+                    {t.tabSettings}
                 </button>
             </div>
 
@@ -330,6 +363,57 @@ function Admin() {
                     uploading={uploading}
                     t={t}
                 />
+            )}
+
+            {/* Ish vaqti sozlamalari tabi */}
+            {activeTab === 'settings' && (
+                <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm max-w-lg mx-auto">
+                    <h2 className="text-lg font-black text-slate-800 mb-4">{t.branchSettings}</h2>
+                    <form onSubmit={handleSaveBranchSettings} className="space-y-4">
+
+                        <div className="flex items-center justify-between bg-slate-50 p-3 rounded-xl border border-slate-100">
+                            <span className="text-xs font-bold text-slate-700">{t.branchStatus}</span>
+                            <div className="flex items-center gap-2">
+                                <input
+                                    type="checkbox"
+                                    checked={branch.is_open}
+                                    onChange={(e) => setBranch({ ...branch, is_open: e.target.checked })}
+                                    className="w-5 h-5 accent-slate-900 cursor-pointer"
+                                />
+                                <span className={`text-xs font-bold ${branch.is_open ? 'text-emerald-600' : 'text-rose-600'}`}>
+                                    {branch.is_open ? t.open : t.closed}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t.openTime}</label>
+                            <input
+                                type="time"
+                                value={branch.open_time}
+                                onChange={(e) => setBranch({ ...branch, open_time: e.target.value })}
+                                className="w-full border border-slate-200 rounded-xl p-2.5 text-xs font-bold text-slate-700 focus:outline-none focus:border-slate-900"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t.closeTime}</label>
+                            <input
+                                type="time"
+                                value={branch.close_time}
+                                onChange={(e) => setBranch({ ...branch, close_time: e.target.value })}
+                                className="w-full border border-slate-200 rounded-xl p-2.5 text-xs font-bold text-slate-700 focus:outline-none focus:border-slate-900"
+                            />
+                        </div>
+
+                        <button
+                            type="submit"
+                            className="w-full bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold py-3 rounded-xl transition shadow-sm"
+                        >
+                            {t.saveBtn}
+                        </button>
+                    </form>
+                </div>
             )}
         </div>
     );

@@ -1,9 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../supabase';
+import { translations } from '../translations';
 
 function Kitchen() {
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [lang, setLang] = useState('ru');
+
+    const t = translations[lang];
 
     const fetchOrders = async () => {
         setLoading(true);
@@ -83,21 +87,38 @@ function Kitchen() {
     };
 
     if (loading) {
-        return <div className="p-8 text-center text-slate-400 font-bold">KDS Yuklanmoqda...</div>;
+        return <div className="p-8 text-center text-slate-400 font-bold">...</div>;
     }
 
     return (
         <div className="min-h-screen bg-slate-900 text-slate-100 p-6 font-sans">
+            <div className="flex justify-end gap-1 mb-4">
+                {['ru', 'lv', 'en', 'uz'].map((l) => (
+                    <button
+                        key={l}
+                        onClick={() => setLang(l)}
+                        className={`px-2.5 py-1 text-[10px] font-black rounded-lg uppercase border transition ${lang === l
+                                ? 'bg-amber-500 text-slate-950 border-amber-500'
+                                : 'bg-slate-800 text-slate-400 border-slate-700 hover:bg-slate-700'
+                            }`}
+                    >
+                        {l}
+                    </button>
+                ))}
+            </div>
+
             <header className="flex justify-between items-center mb-8 border-b border-slate-800 pb-4">
                 <div>
-                    <h1 className="text-2xl font-black text-white">KITCHEN DISPLAY SYSTEM</h1>
+                    <h1 className="text-2xl font-black text-white">
+                        {lang === 'ru' ? 'КУХОННЫЙ ДИСПЛЕЙ (KDS)' : lang === 'lv' ? 'VIRTUVES EKRĀNS (KDS)' : lang === 'en' ? 'KITCHEN DISPLAY SYSTEM' : 'OSHXONA EKRANI (KDS)'}
+                    </h1>
                     <p className="text-xs text-emerald-400 font-bold flex items-center gap-1">
                         ● Real-time Live
                     </p>
                 </div>
                 <div className="text-right">
                     <span className="text-3xl font-extrabold text-slate-400">{orders.length}</span>
-                    <span className="text-xs text-slate-500 block font-semibold">Active Orders</span>
+                    <span className="text-xs text-slate-500 block font-semibold">{t.activeOrders}</span>
                 </div>
             </header>
 
@@ -117,10 +138,10 @@ function Kitchen() {
                                 <div className="flex justify-between items-center border-b border-slate-700 pb-2 mb-3">
                                     <span className="text-xs font-black uppercase px-2 py-0.5 rounded bg-slate-700 text-sky-400">
                                         {order.order_type === 'dine_in'
-                                            ? `Stol #${order.table_number}`
+                                            ? `${t.table}${order.table_number}`
                                             : order.order_type === 'pickup'
-                                                ? 'TAKEAWAY'
-                                                : 'BOOKING'}
+                                                ? t.takeaway
+                                                : t.booking}
                                     </span>
                                     <span className="text-xs text-slate-400">
                                         {new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -157,7 +178,7 @@ function Kitchen() {
 
                             <div>
                                 <div className="flex justify-between items-center pt-2 pb-3 border-t border-slate-700 mb-3">
-                                    <span className="text-xs text-slate-400 font-bold">Jami:</span>
+                                    <span className="text-xs text-slate-400 font-bold">{t.total}</span>
                                     <span className="text-base font-black text-emerald-400">
                                         €{Number(order.total_price || 0).toFixed(2)}
                                     </span>
@@ -169,7 +190,7 @@ function Kitchen() {
                                             onClick={() => updateStatus(order.id, 'in_prep')}
                                             className="w-full bg-amber-500 text-slate-950 font-black py-2 rounded-xl text-sm"
                                         >
-                                            START PREPARING
+                                            {lang === 'ru' ? 'ГОТОВИТЬ' : lang === 'lv' ? 'SĀKT GATAVOT' : lang === 'en' ? 'START PREPARING' : 'TAYYORLASHNI BOSHLASH'}
                                         </button>
                                     )}
 
@@ -178,7 +199,7 @@ function Kitchen() {
                                             onClick={() => updateStatus(order.id, 'ready')}
                                             className="w-full bg-emerald-500 text-slate-950 font-black py-2 rounded-xl text-sm"
                                         >
-                                            MARK AS READY
+                                            {lang === 'ru' ? 'ГОТОВО' : lang === 'lv' ? 'GATAVS' : lang === 'en' ? 'MARK AS READY' : 'TAYYOR BO\'LDI'}
                                         </button>
                                     )}
 
@@ -187,7 +208,7 @@ function Kitchen() {
                                             onClick={() => updateStatus(order.id, 'completed')}
                                             className="w-full bg-slate-700 text-slate-300 font-bold py-2 rounded-xl text-sm"
                                         >
-                                            COMPLETE & CLEAR
+                                            {t.completeBtn}
                                         </button>
                                     )}
                                 </div>

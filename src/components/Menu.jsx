@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
+import { translations } from '../translations';
 
 export default function Menu() {
     const [categories, setCategories] = useState([]);
@@ -8,6 +9,9 @@ export default function Menu() {
     const [cart, setCart] = useState([]);
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
+    const [lang, setLang] = useState('ru');
+
+    const t = translations[lang];
 
     const queryParams = new URLSearchParams(window.location.search);
     const tableNumber = queryParams.get('table') || '1';
@@ -64,10 +68,10 @@ export default function Menu() {
     };
 
     const submitOrder = async () => {
-        if (cart.length === 0) return alert("Savatchangiz bo'sh!");
+        if (cart.length === 0) return alert(t.emptyCartAlert);
 
         const tenantId = categories[0]?.tenant_id || menuItems[0]?.tenant_id;
-        if (!tenantId) return alert("Restoran ma'lumotlari yuklanmadi, sahifani qayta yangilang!");
+        if (!tenantId) return alert(t.closedAlert);
 
         const parsedTableNumber = Number(tableNumber) || 0;
         const totalPrice = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
@@ -92,7 +96,7 @@ export default function Menu() {
 
         if (orderError) {
             setSubmitting(false);
-            return alert("Buyurtma yuborishda xatolik bo'ldi: " + orderError.message);
+            return alert(`${t.errorOccurred} ${orderError.message}`);
         }
 
         const orderItemsData = cart.map((item) => ({
@@ -109,9 +113,9 @@ export default function Menu() {
         setSubmitting(false);
 
         if (itemsError) {
-            alert("Taomlarni saqlashda xatolik yuz berdi: " + itemsError.message);
+            alert(`${t.errorOccurred} ${itemsError.message}`);
         } else {
-            alert("🎉 Buyurtmangiz qabul qilindi!");
+            alert(t.orderSuccessTitle);
             setCart([]);
         }
     };
@@ -130,51 +134,59 @@ export default function Menu() {
         : sortedMenuItems.filter((item) => item.category_id === selectedCategory);
 
     if (loading) {
-        return <div className="p-8 text-center text-slate-500 font-bold">Menyu yuklanmoqda...</div>;
+        return <div className="p-8 text-center text-slate-500 font-bold">...</div>;
     }
 
     return (
         <div className="max-w-md mx-auto bg-slate-50 min-h-screen p-4 font-sans pb-32">
+            <div className="flex justify-end gap-1 mb-2">
+                {['ru', 'lv', 'en', 'uz'].map((l) => (
+                    <button
+                        key={l}
+                        onClick={() => setLang(l)}
+                        className={`px-2.5 py-1 text-[10px] font-black rounded-lg uppercase border transition ${lang === l ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-200'}`}
+                    >
+                        {l}
+                    </button>
+                ))}
+            </div>
+
             <div className="mb-4 border-b pb-3">
-                <h1 className="text-2xl font-black text-slate-800">Chayhana Menu</h1>
+                <h1 className="text-2xl font-black text-slate-800">{t.chayhanaMenu}</h1>
                 <span className="text-xs bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-full font-bold inline-block mt-1">
-                    Stol #{tableNumber}
+                    {t.table}{tableNumber}
                 </span>
             </div>
 
             <div className="bg-slate-200 p-1 rounded-2xl flex mb-6">
                 <button
                     onClick={() => setOrderType('dine_in')}
-                    className={`flex-1 py-2.5 rounded-xl text-xs font-black transition ${orderType === 'dine_in' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600'
-                        }`}
+                    className={`flex-1 py-2.5 rounded-xl text-xs font-black transition ${orderType === 'dine_in' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600'}`}
                 >
-                    🍽️ Shu yerda yeyish
+                    {t.dineIn}
                 </button>
                 <button
                     onClick={() => setOrderType('takeaway')}
-                    className={`flex-1 py-2.5 rounded-xl text-xs font-black transition ${orderType === 'takeaway' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600'
-                        }`}
+                    className={`flex-1 py-2.5 rounded-xl text-xs font-black transition ${orderType === 'takeaway' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600'}`}
                 >
-                    🛍️ Olib ketish
+                    {t.takeaway}
                 </button>
             </div>
 
             <div className="flex gap-2 overflow-x-auto pb-4 mb-4 no-scrollbar">
                 <button
                     onClick={() => setSelectedCategory('all')}
-                    className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition ${selectedCategory === 'all' ? 'bg-slate-900 text-white' : 'bg-white text-slate-600 border'
-                        }`}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition ${selectedCategory === 'all' ? 'bg-slate-900 text-white' : 'bg-white text-slate-600 border'}`}
                 >
-                    Barchasi
+                    {t.allCategories}
                 </button>
                 {categories.map((cat) => (
                     <button
                         key={cat.id}
                         onClick={() => setSelectedCategory(cat.id)}
-                        className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition ${selectedCategory === cat.id ? 'bg-slate-900 text-white' : 'bg-white text-slate-600 border'
-                            }`}
+                        className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition ${selectedCategory === cat.id ? 'bg-slate-900 text-white' : 'bg-white text-slate-600 border'}`}
                     >
-                        {cat.name}
+                        {t.categories?.[cat.name] || cat.name}
                     </button>
                 ))}
             </div>
@@ -187,8 +199,7 @@ export default function Menu() {
                     return (
                         <div
                             key={item.id}
-                            className={`p-4 rounded-2xl border transition flex justify-between items-center ${isAvailable ? 'bg-white border-slate-200' : 'bg-slate-100 border-slate-200 opacity-60'
-                                }`}
+                            className={`p-4 rounded-2xl border transition flex justify-between items-center ${isAvailable ? 'bg-white border-slate-200' : 'bg-slate-100 border-slate-200 opacity-60'}`}
                         >
                             <div className="flex items-center gap-3">
                                 {item.image_url ? (
@@ -208,7 +219,7 @@ export default function Menu() {
                                         <h3 className="font-bold text-slate-800 text-sm">{item.name}</h3>
                                         {!isAvailable && (
                                             <span className="text-[10px] bg-rose-100 text-rose-700 font-black px-2 py-0.5 rounded-md">
-                                                Tugagan
+                                                {t.outOfStock}
                                             </span>
                                         )}
                                     </div>
@@ -222,7 +233,7 @@ export default function Menu() {
                             <div>
                                 {!isAvailable ? (
                                     <button disabled className="bg-slate-200 text-slate-400 text-xs font-bold px-3 py-2 rounded-xl cursor-not-allowed">
-                                        Mavjud emas
+                                        {t.notAvailable}
                                     </button>
                                 ) : cartItem ? (
                                     <div className="flex items-center gap-2 bg-slate-900 text-white rounded-xl p-1">
@@ -235,7 +246,7 @@ export default function Menu() {
                                         onClick={() => addToCart(item)}
                                         className="bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold px-4 py-2 rounded-xl transition"
                                     >
-                                        Qo'shish
+                                        {t.add}
                                     </button>
                                 )}
                             </div>
@@ -247,7 +258,7 @@ export default function Menu() {
             {cart.length > 0 && (
                 <div className="fixed bottom-4 left-4 right-4 max-w-md mx-auto bg-slate-900 text-white p-4 rounded-2xl shadow-2xl flex justify-between items-center">
                     <div>
-                        <span className="text-xs text-slate-400 block">{cart.reduce((a, b) => a + b.quantity, 0)} ta taom</span>
+                        <span className="text-xs text-slate-400 block">{cart.reduce((a, b) => a + b.quantity, 0)} {t.cartItemsCount}</span>
                         <span className="text-lg font-black">€{cart.reduce((a, b) => a + b.price * b.quantity, 0).toFixed(2)}</span>
                     </div>
                     <button
@@ -255,7 +266,7 @@ export default function Menu() {
                         disabled={submitting}
                         className="bg-emerald-500 hover:bg-emerald-600 disabled:bg-slate-600 text-white font-bold px-5 py-2.5 rounded-xl text-sm transition"
                     >
-                        {submitting ? 'Yuborilmoqda...' : 'Buyurtma berish ➔'}
+                        {submitting ? t.submitting : t.submitOrder}
                     </button>
                 </div>
             )}

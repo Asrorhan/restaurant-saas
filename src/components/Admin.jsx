@@ -5,6 +5,7 @@ import Workbook from 'exceljs';
 import OrderStats from '../components/OrderStats';
 import OrderList from '../components/OrderList';
 import MenuManager from '../components/MenuManager';
+import { translations } from '../translations';
 
 function Admin() {
     const [categories, setCategories] = useState([]);
@@ -22,10 +23,12 @@ function Admin() {
     const [newPrice, setNewPrice] = useState('');
     const [session, setSession] = useState(null);
     const [dateFilter, setDateFilter] = useState('today');
+    const [lang, setLang] = useState('ru');
 
-    // 📸 Rasm fayli va yuklanish holati uchun state'lar
     const [imageFile, setImageFile] = useState(null);
     const [uploading, setUploading] = useState(false);
+
+    const t = translations[lang];
 
     const filteredOrders = orders.filter((order) => {
         if (dateFilter === 'all') return true;
@@ -48,18 +51,18 @@ function Admin() {
     const totalOrdersCount = filteredOrders.length;
     const myCommission = Number((totalRevenue * (commisionRate / 100))).toFixed(2);
     const dineInOrders = filteredOrders.filter(o => o.order_type === 'dine_in').length;
-    const takeawayOrders = filteredOrders.filter(o => o.order_type === 'takeaway').length;
+    const takeawayOrders = filteredOrders.filter(o => o.order_type === 'takeaway' || o.order_type === 'pickup').length;
 
     const exportToExcel = async () => {
         const workbook = new Workbook.Workbook();
         const worksheet = workbook.addWorksheet('Orders_Report');
         worksheet.columns = [
-            { header: 'Buyurtma ID', key: 'id', width: 15 },
-            { header: 'Stol #', key: 'table', width: 10 },
-            { header: 'Turi', key: 'type', width: 15 },
-            { header: 'Jami Summa (€)', key: 'price', width: 15 },
+            { header: 'ID', key: 'id', width: 15 },
+            { header: 'Table #', key: 'table', width: 10 },
+            { header: 'Type', key: 'type', width: 15 },
+            { header: 'Price (€)', key: 'price', width: 15 },
             { header: 'Status', key: 'status', width: 15 },
-            { header: 'Sana', key: 'date', width: 22 },
+            { header: 'Date', key: 'date', width: 22 },
         ];
 
         filteredOrders.forEach((o) => {
@@ -143,7 +146,7 @@ function Admin() {
 
     const handleAddItem = async (e) => {
         e.preventDefault();
-        if (!name || !price || !categoryId) return alert("Barcha maydonlarni to'ldiring!");
+        if (!name || !price || !categoryId) return alert(t.enterNameAlert);
 
         setUploading(true);
         let imageUrl = null;
@@ -158,7 +161,7 @@ function Admin() {
                 .upload(filePath, imageFile);
 
             if (uploadError) {
-                alert("Rasm yuklashda xatolik yuz berdi: " + uploadError.message);
+                alert(`${t.errorOccurred} ${uploadError.message}`);
                 setUploading(false);
                 return;
             }
@@ -188,19 +191,19 @@ function Admin() {
         if (!error && data) {
             setMenuItems([data, ...menuItems]);
             setName(''); setPrice(''); setDescription(''); setImageFile(null);
-            alert("Yangi taom qo'shildi!");
+            alert("✓");
         }
         fetchData();
     };
 
     const handleDeleteItem = async (itemId) => {
-        if (!window.confirm("Rostdan ham bu taomni bazadan o'chirmoqchimisiz?")) return;
+        if (!window.confirm("?")) return;
         const { error } = await supabase.from('menu_items').delete().eq('id', itemId);
         if (!error) setMenuItems((prev) => prev.filter((item) => item.id !== itemId));
     };
 
     const handleUpdatePrice = async (itemId) => {
-        if (!newPrice || isNaN(newPrice)) return alert("To'g'ri narx kiriting!");
+        if (!newPrice || isNaN(newPrice)) return alert("Error");
         const { error } = await supabase.from('menu_items').update({ price: parseFloat(newPrice) }).eq('id', itemId);
         if (!error) {
             setMenuItems((prev) => prev.map((item) => (item.id === itemId ? { ...item, price: parseFloat(newPrice) } : item)));
@@ -213,18 +216,36 @@ function Admin() {
     };
 
     if (!session) return <Login onLoginSuccess={(sess) => setSession(sess)} />;
-    if (loading) return <div className="p-8 text-center font-bold text-slate-500">Admin panel yuklanmoqda...</div>;
+    if (loading) return <div className="p-8 text-center font-bold text-slate-500">...</div>;
 
     return (
         <div className="max-w-4xl mx-auto p-6 font-sans">
             <div className="flex justify-between items-center border-b pb-4 mb-6">
-                <h1 className="text-2xl font-black text-slate-800">Boshqaruv Paneli (Admin)</h1>
-                <button
-                    onClick={() => supabase.auth.signOut()}
-                    className="text-xs bg-rose-50 text-rose-600 border border-rose-200 px-3 py-1.5 rounded-xl font-bold hover:bg-rose-500 hover:text-white transition"
-                >
-                    Chiqish (Logout)
-                </button>
+                <div>
+                    <h1 className="text-2xl font-black text-slate-800">
+                        {t.adminPanel}
+                    </h1>
+                </div>
+                <div className="flex items-center gap-3">
+                    <div className="flex gap-1">
+                        {['ru', 'lv', 'en', 'uz'].map((l) => (
+                            <button
+                                key={l}
+                                onClick={() => setLang(l)}
+                                className={`px-2.5 py-1 text-[10px] font-black rounded-lg uppercase border transition ${lang === l ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-200'
+                                    }`}
+                            >
+                                {l}
+                            </button>
+                        ))}
+                    </div>
+                    <button
+                        onClick={() => supabase.auth.signOut()}
+                        className="text-xs bg-rose-50 text-rose-600 border border-rose-200 px-3 py-1.5 rounded-xl font-bold hover:bg-rose-500 hover:text-white transition"
+                    >
+                        {t.logout}
+                    </button>
+                </div>
             </div>
 
             <div className="flex gap-2 mb-6 border-b pb-3">
@@ -233,14 +254,14 @@ function Admin() {
                     className={`px-4 py-2 rounded-xl text-xs font-bold transition ${activeTab === 'orders' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600'
                         }`}
                 >
-                    📊 Dashboard & Live Orders
+                    {t.tabDashboard}
                 </button>
                 <button
                     onClick={() => setActiveTab('menu')}
                     className={`px-4 py-2 rounded-xl text-xs font-bold transition ${activeTab === 'menu' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600'
                         }`}
                 >
-                    🍔 Menu & Price Control
+                    {t.tabMenu}
                 </button>
             </div>
 
@@ -248,7 +269,9 @@ function Admin() {
                 <>
                     <div className="flex flex-wrap justify-between items-center bg-white p-4 rounded-2xl border border-slate-200 mb-6 gap-3 shadow-sm">
                         <div className="flex items-center gap-2">
-                            <span className="text-xs font-bold text-slate-500 uppercase">Vaqt filtri:</span>
+                            <span className="text-xs font-bold text-slate-500 uppercase">
+                                {t.filterLabel}
+                            </span>
                             {['today', 'week', 'month'].map((filter) => (
                                 <button
                                     key={filter}
@@ -256,7 +279,7 @@ function Admin() {
                                     className={`px-3 py-1.5 rounded-xl text-xs font-bold transition capitalize ${dateFilter === filter ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                                         }`}
                                 >
-                                    {filter === 'today' ? 'Bugun' : filter === 'week' ? 'Shu Hafta' : 'Shu Oy'}
+                                    {filter === 'today' ? t.today : filter === 'week' ? t.week : t.month}
                                 </button>
                             ))}
                         </div>
@@ -265,7 +288,7 @@ function Admin() {
                             onClick={exportToExcel}
                             className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-4 py-2 rounded-xl transition flex items-center gap-2 shadow-sm"
                         >
-                            📥 Excel Hisobot (.xlsx)
+                            {t.excelReport}
                         </button>
                     </div>
 
@@ -276,9 +299,10 @@ function Admin() {
                         myCommission={myCommission}
                         dineInOrders={dineInOrders}
                         takeawayOrders={takeawayOrders}
+                        t={t}
                     />
 
-                    <OrderList orders={filteredOrders} handleUpdateStatus={handleUpdateStatus} />
+                    <OrderList orders={filteredOrders} handleUpdateStatus={handleUpdateStatus} t={t} />
                 </>
             )}
 
@@ -302,9 +326,9 @@ function Admin() {
                     handleUpdatePrice={handleUpdatePrice}
                     toggleAvailability={toggleAvailability}
                     handleDeleteItem={handleDeleteItem}
-                    /* 📸 MenuManager komponentiga rasm tayanchlarini uzatamiz */
                     setImageFile={setImageFile}
                     uploading={uploading}
+                    t={t}
                 />
             )}
         </div>

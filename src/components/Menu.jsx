@@ -13,8 +13,12 @@ export default function Menu() {
 
     const t = translations[lang];
 
+    // Stol raqamini dinamik aniqlash (?table=2 yoki /table-2 formatlarini qo'llab-quvvatlaydi)
     const queryParams = new URLSearchParams(window.location.search);
-    const tableNumber = queryParams.get('table') || '1';
+    const tableParam = queryParams.get('table');
+    const pathMatch = window.location.pathname.match(/table-?(\d+)/);
+    const tableNumber = tableParam || (pathMatch ? pathMatch[1] : '1');
+
     const [orderType, setOrderType] = useState('dine_in');
 
     useEffect(() => {

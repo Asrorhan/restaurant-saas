@@ -13,7 +13,6 @@ export default function Menu() {
 
     const t = translations[lang];
 
-    // Stol raqamini dinamik aniqlash (?table=2 yoki /table-2 formatlarini qo'llab-quvvatlaydi)
     const queryParams = new URLSearchParams(window.location.search);
     const tableParam = queryParams.get('table');
     const pathMatch = window.location.pathname.match(/table-?(\d+)/);
@@ -227,7 +226,8 @@ export default function Menu() {
                                             </span>
                                         )}
                                     </div>
-                                    <p className="text-xs text-slate-400 mt-0.5">{item.description}</p>
+                                    {/* Taom tavsifi (Bolt Food uslubida kichik matn bilan) */}
+                                    <p className="text-[11px] text-slate-400 mt-0.5 line-clamp-2">{item.description}</p>
                                     <span className="text-sm font-extrabold text-slate-900 block mt-2">
                                         €{Number(item.price).toFixed(2)}
                                     </span>

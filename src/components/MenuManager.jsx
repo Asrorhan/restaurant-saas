@@ -103,8 +103,7 @@ function MenuManager({
                 {menuItems.map((item) => (
                     <div
                         key={item.id}
-                        className={`p-4 rounded-2xl border flex justify-between items-center transition ${item.is_available ? 'bg-white border-slate-200' : 'bg-slate-100 border-slate-300 opacity-60'
-                            }`}
+                        className={`p-4 rounded-2xl border flex justify-between items-center transition ${item.is_available ? 'bg-white border-slate-200' : 'bg-slate-100 border-slate-300 opacity-60'}`}
                     >
                         <div className="flex items-center gap-3">
                             {item.image_url ? (
@@ -121,6 +120,8 @@ function MenuManager({
 
                             <div>
                                 <h3 className="font-bold text-slate-800 text-sm">{item.name}</h3>
+                                {/* Admin ro'yxatida tavsifni aniq ko'rsatish */}
+                                <p className="text-xs text-slate-400 mt-0.5">{item.description || 'Tavsif kiritilmagan'}</p>
 
                                 {editingItemId === item.id ? (
                                     <div className="flex items-center gap-1 mt-1">
@@ -171,8 +172,7 @@ function MenuManager({
                                 onClick={() => toggleAvailability(item)}
                                 className={`text-xs font-black px-3 py-1.5 rounded-xl transition ${item.is_available
                                     ? 'bg-emerald-100 text-emerald-700 border border-emerald-300'
-                                    : 'bg-rose-100 text-rose-700 border border-rose-300'
-                                    }`}
+                                    : 'bg-rose-100 text-rose-700 border border-rose-300'}`}
                             >
                                 {item.is_available ? t.add : t.outOfStock}
                             </button>

@@ -12,7 +12,6 @@ function RemoteOrder() {
     const [orderSuccess, setOrderSuccess] = useState(false);
 
     const [orderType, setOrderType] = useState('booking');
-    const [paymentMethod, setPaymentMethod] = useState('counter');
 
     const [name, setName] = useState(() => localStorage.getItem('cust_name') || '');
     const [bookingHour, setBookingHour] = useState('');
@@ -62,7 +61,6 @@ function RemoteOrder() {
         }
     }, [timeSlots]);
 
-    // Barcha useEffect-lar va Realtime bitta joyga birlashtirildi
     useEffect(() => {
         fetchData();
 
@@ -133,7 +131,6 @@ function RemoteOrder() {
     };
 
     const handleSubmit = async () => {
-        // Tugma bosilganda bazadan holatni qaytadan tekshirish
         const { data: latestBranch } = await supabase.from('branches').select('*').eq('id', 1).single();
 
         if (latestBranch) {
@@ -174,8 +171,8 @@ function RemoteOrder() {
             total_price: total,
             delivery_fee: 0,
             delivery_address: fullInfo,
-            payment_method: paymentMethod,
-            payment_status: paymentMethod === 'revolut' ? 'pending' : 'pay_on_site'
+            payment_method: 'counter',
+            payment_status: 'pay_on_site'
         }]).select().single();
 
         if (error) {
@@ -237,8 +234,7 @@ function RemoteOrder() {
                     <button
                         key={l}
                         onClick={() => setLang(l)}
-                        className={`px-2.5 py-1 text-[10px] font-black rounded-lg uppercase border transition ${lang === l ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-200'
-                            }`}
+                        className={`px-2.5 py-1 text-[10px] font-black rounded-lg uppercase border transition ${lang === l ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-200'}`}
                     >
                         {l}
                     </button>
@@ -256,15 +252,13 @@ function RemoteOrder() {
             <div className="bg-slate-200 p-1 rounded-2xl flex gap-1 mb-4">
                 <button
                     onClick={() => setOrderType('booking')}
-                    className={`flex-1 py-2 rounded-xl text-xs font-black transition ${orderType === 'booking' ? 'bg-slate-900 text-white shadow' : 'text-slate-600'
-                        }`}
+                    className={`flex-1 py-2 rounded-xl text-xs font-black transition ${orderType === 'booking' ? 'bg-slate-900 text-white shadow' : 'text-slate-600'}`}
                 >
                     {t.booking}
                 </button>
                 <button
                     onClick={() => setOrderType('pickup')}
-                    className={`flex-1 py-2 rounded-xl text-xs font-black transition ${orderType === 'pickup' ? 'bg-slate-900 text-white shadow' : 'text-slate-600'
-                        }`}
+                    className={`flex-1 py-2 rounded-xl text-xs font-black transition ${orderType === 'pickup' ? 'bg-slate-900 text-white shadow' : 'text-slate-600'}`}
                 >
                     {t.takeaway}
                 </button>
@@ -299,30 +293,12 @@ function RemoteOrder() {
                         <span className="text-xs font-bold text-rose-500">{t.restaurantClosed || 'Yopiq'}</span>
                     )}
                 </div>
-
-                <div className="flex gap-2 pt-1 border-t">
-                    <button
-                        onClick={() => setPaymentMethod('counter')}
-                        className={`flex-1 py-2 rounded-xl border font-bold transition ${paymentMethod === 'counter' ? 'bg-slate-900 text-white' : 'bg-slate-50 text-slate-600'
-                            }`}
-                    >
-                        {t.payCounter}
-                    </button>
-                    <button
-                        onClick={() => setPaymentMethod('revolut')}
-                        className={`flex-1 py-2 rounded-xl border font-bold transition ${paymentMethod === 'revolut' ? 'bg-indigo-600 text-white' : 'bg-slate-50 text-slate-600'
-                            }`}
-                    >
-                        {t.payRevolut}
-                    </button>
-                </div>
             </div>
 
             <div className="flex gap-2 overflow-x-auto pb-2 mb-3 no-scrollbar">
                 <button
                     onClick={() => setSelectedCategory('all')}
-                    className={`px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition ${selectedCategory === 'all' ? 'bg-slate-900 text-white' : 'bg-white border text-slate-600'
-                        }`}
+                    className={`px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition ${selectedCategory === 'all' ? 'bg-slate-900 text-white' : 'bg-white border text-slate-600'}`}
                 >
                     {t.allCategories}
                 </button>
@@ -330,8 +306,7 @@ function RemoteOrder() {
                     <button
                         key={c.id}
                         onClick={() => setSelectedCategory(c.id)}
-                        className={`px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition ${selectedCategory === c.id ? 'bg-slate-900 text-white' : 'bg-white border text-slate-600'
-                            }`}
+                        className={`px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition ${selectedCategory === c.id ? 'bg-slate-900 text-white' : 'bg-white border text-slate-600'}`}
                     >
                         {t.categories?.[c.name] || c.name}
                     </button>
@@ -357,7 +332,8 @@ function RemoteOrder() {
                                 )}
                                 <div>
                                     <h4 className="font-bold text-slate-800 text-xs">{item.name}</h4>
-                                    <span className="text-xs font-black text-slate-900 block mt-0.5">
+                                    <p className="text-[11px] text-slate-400 mt-0.5 line-clamp-2">{item.description}</p>
+                                    <span className="text-xs font-black text-slate-900 block mt-1">
                                         €{Number(item.price).toFixed(2)}
                                     </span>
                                 </div>
